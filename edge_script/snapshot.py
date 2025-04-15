@@ -29,18 +29,17 @@ def download_image(ssh_client, remote_file, local_dir):
 
 
 def main():
-    # SSH connection details - Update these as needed
-    hostname = "192.168.1.1"
 
+    # SSH connection details - Update these as needed
+    hostname = "192.168.0.105"
     port = 22  # Default SSH port
     username = "pi"  # SSH username
     password = "pw"  # SSH password
+    unique_id = "test_unique_id"
 
     # Local directory where downloaded images will be saved
-    base_local_dir = "./downloaded_images"
-    os.makedirs(
-        base_local_dir, exist_ok=True
-    )  # Create the base directory if it doesn't already exist
+    base_local_dir = os.path.join("./downloaded_images/v1", unique_id)
+    os.makedirs(base_local_dir, exist_ok=True)
 
     # Get the current epoch time to uniquely identify the files
     epoch = int(time.time())
@@ -49,15 +48,17 @@ def main():
         # Establish SSH connection
         ssh_client = create_ssh_client(hostname, port, username, password)
 
-        # Trigger the snapshot_input.bash script with the epoch as an argument
+        # Trigger the snapshot_input.bash script with epoch and unique_id as arguments
         print("Executing snapshot script...")
-        execute_command(ssh_client, f"bash /home/pi/snapshot_input.bash {epoch}")
+        execute_command(
+            ssh_client, f"bash /home/pi/take_snap_shot.bash {epoch} {unique_id}"
+        )
         time.sleep(5)  # Increase delay for processing time
 
         # Define the paths to check images
         for side in ["left", "right"]:
-            remote_dir = f"/home/pi/{side}"
-            remote_file = f"{remote_dir}/{epoch}_{side}.jpg"
+            remote_dir = f"/home/pi/{unique_id}/{side}"
+            remote_file = f"{remote_dir}/{unique_id}_{epoch}_{side}.jpg"
 
             local_subdir = os.path.join(base_local_dir, side)
             os.makedirs(local_subdir, exist_ok=True)
