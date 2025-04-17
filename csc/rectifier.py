@@ -216,23 +216,39 @@ class Rectifier:
 
 # Example usage of Rectifier class
 if __name__ == "__main__":
+    # Configuration variables
+    calibration_id = "C250416SN2_v0.1"
+    base_img_path = "demo/samples"
+    base_out_path = f"output/rectifier/{calibration_id}"
+
     # Initialize the rectifier with visualization dimensions
     rectifier = Rectifier(
-        calibration_file="stereoMap.xml",
+        calibration_file=f"{calibration_id}_stereoMap.xml",
         visualization_dims=(960, 540),  # Resize for visualization only
     )
 
     # Example stereo image paths
-    left_image_path = "demo/samples/left_sample1.jpg"
-    right_image_path = "demo/samples/right_sample1.jpg"
+    image_timestamp = "1744817521"  # Assuming this is dynamic in real usage
+    left_image_path = f"{base_img_path}/{calibration_id}_{image_timestamp}_left.jpg"
+    right_image_path = f"{base_img_path}/{calibration_id}_{image_timestamp}_right.jpg"
 
     # Rectify stereo pairs
     rectified_left, rectified_right = rectifier.rectify_image(
         left_image_path, right_image_path
     )
-    cv.imwrite("output/rectifier/rectified_left.jpg", rectified_left)
-    cv.imwrite("output/rectifier/rectified_right.jpg", rectified_right)
-    log_message("Rectified images saved successfully!", level="SUCCESS")
+
+    # Create output directory if it doesn't exist
+    import os
+
+    os.makedirs(base_out_path, exist_ok=True)
+
+    # Save rectified images
+    output_prefix = f"{base_out_path}/{image_timestamp}"
+    cv.imwrite(f"{output_prefix}_left_rectified.jpg", rectified_left)
+    cv.imwrite(f"{output_prefix}_right_rectified.jpg", rectified_right)
+    log_message(
+        f"Rectified images saved to {base_out_path} successfully!", level="SUCCESS"
+    )
 
     # Visualize epipolar geometry with epilines
     rectifier.visualize_epipolar(left_image_path, right_image_path, save=True)

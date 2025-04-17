@@ -8,7 +8,14 @@ from csc.charuco_calibrator import *
 
 class CharucoStereoCalibrator(CharucoCalibrator):
 
-    def __init__(self, known_extrinsic_R=None, known_extrinsic_T=None, *args, **kwargs):
+    def __init__(
+        self,
+        known_extrinsic_R=None,
+        known_extrinsic_T=None,
+        unique_id=None,
+        *args,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
 
         # Initialize lists to store object points and image points (for both cameras)
@@ -28,6 +35,7 @@ class CharucoStereoCalibrator(CharucoCalibrator):
         self.board = None
         self.known_extrinsic_R = known_extrinsic_R
         self.known_extrinsic_T = known_extrinsic_T
+        self.unique_id = unique_id
 
         if self.f_in_mm is not None and self.pixel_size_mm is not None:
             f_in_pixels = self.f_in_mm / self.pixel_size_mm
@@ -96,7 +104,7 @@ class CharucoStereoCalibrator(CharucoCalibrator):
             stereo_error = 0
             for pl, pr in zip(pointsL_h, pointsR_h):
                 # Epipolar constraint: pl' * F * pr = 0
-                err = np.abs(pl @ Fund_mat @ pr.T)
+                err = np.abs(pr @ Fund_mat @ pl.T)
                 stereo_error += err
 
             stereo_error /= len(objpoints)
@@ -429,7 +437,7 @@ class CharucoStereoCalibrator(CharucoCalibrator):
         self.F = F
 
         # Stereo Rectification
-        alpha = 0  # 1: no crop, 0: fully crop, [0-1]: somewhere in between
+        alpha = 0.3  # 1: no crop, 0: fully crop, [0-1]: somewhere in between
         rectL, rectR, projMatrixL, projMatrixR, Q, roi_L, roi_R = cv.stereoRectify(
             cameraMatrix1=newCameraMatrixL,
             distCoeffs1=distL,
@@ -475,7 +483,7 @@ class CharucoStereoCalibrator(CharucoCalibrator):
     def save_matrices(self, camera_matrix_L, dist_L, camera_matrix_R, dist_R):
         """Save calibration matrices and rectification maps to a file."""
         print("Saving parameters!")
-        cv_file = cv.FileStorage("stereoMap.xml", cv.FILE_STORAGE_WRITE)
+        cv_file = cv.FileStorage(f"{unique_id}_stereoMap.xml", cv.FILE_STORAGE_WRITE)
 
         cv_file.write("stereoMapL_x", self.stereoMapL[0])
         cv_file.write("stereoMapL_y", self.stereoMapL[1])
@@ -677,16 +685,22 @@ class CharucoStereoCalibrator(CharucoCalibrator):
 if __name__ == "__main__":
 
     # Example usage
-    images_left = glob.glob("input/charuco/left/*.jpg")
-    images_right = glob.glob("input/charuco/right/*.jpg")
+    unique_id = "C250416SN5_v0.1"
+    base_dir = f"downloaded_images/v0.1/{unique_id}"
+    images_left = sorted(glob.glob(f"{base_dir}/left/*.jpg"))
+    images_right = sorted(glob.glob(f"{base_dir}/right/*.jpg"))
 
-    chessboard_size = (11, 8)
-    frame_size_h = 2592 // 2
-    frame_size_w = 4608 // 2
+    chessboard_size = (15, 8)
+    frame_size_h = 2592
+    frame_size_w = 4608
 
     # if below is None, then algorithm figure this out.
     f_in_mm = 4.74
-    pixel_size_mm = 1.4e-3 * 2  # binning
+    pixel_size_mm = 1.4e-3
+    # pixel_size_mm = 1.4e-3 * 2  # binning
+
+    square_mm = 15.5
+    marker_mm = 12.8
 
     ### Only if the rig is really reliable, then use below. ###
     # baseline_mm = 40
@@ -705,13 +719,16 @@ if __name__ == "__main__":
         frame_size_w=frame_size_w,
         f_in_mm=f_in_mm,
         pixel_size_mm=pixel_size_mm,
+        square_mm=square_mm,
+        marker_mm=marker_mm,
+        unique_id=unique_id,
         known_extrinsic_R=None,
         known_extrinsic_T=None,
         debug=False,
     )
 
-    left_show = "demo/samples/left_sample1.jpg"
-    right_show = "demo/samples/right_sample1.jpg"
+    left_show = images_left[0]
+    right_show = images_right[0]
 
     stereo_calibrator.perform_calibration(images_left, images_right)
     stereo_calibrator.save_rectified_images(images_left, images_right)
